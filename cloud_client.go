@@ -1191,7 +1191,7 @@ func (c *CloudClient) DownloadItemsAsZIPArchiveToStream(filesAndFoldersPaths []s
 
 // validateZipPaths проверяет валидность путей для ZIP архива
 func (c *CloudClient) validateZipPaths(filesAndFoldersPaths []string) error {
-	if filesAndFoldersPaths == nil || len(filesAndFoldersPaths) == 0 {
+	if len(filesAndFoldersPaths) == 0 {
 		return &CloudClientError{
 			Message:   "Список путей не может быть пустым",
 			ErrorCode: ErrorCodePathNotExists,
