@@ -729,6 +729,86 @@ func (c *CloudClient) checkUnknownItemExisting(sourceFullPath string) (*CloudStr
 	}
 }
 
+// preparePublishLink подготавливает ссылку для публикации
+func (c *CloudClient) preparePublishLink(link string) (string, *CloudStructureEntryBase, error) {
+	link = c.getPathStartEndSlash(link, true, false)
+	item, err := c.checkUnknownItemExisting(link)
+	if err != nil {
+		return "", nil, err
+	}
+	return link, item, nil
+}
+
+// prepareUnpublishLink подготавливает ссылку для отмены публикации
+func prepareUnpublishLink(link string) string {
+	return strings.Replace(link, PublicLink, "", 1)
+}
+
+// preparePublishRequestData подготавливает данные для запроса публикации
+func (c *CloudClient) preparePublishRequestData(link string) url.Values {
+	values := c.getDefaultFormDataFields(link)
+	delete(values, "conflict")
+	return c.formDataToValues(values)
+}
+
+// prepareUnpublishRequestData подготавливает данные для запроса отмены публикации
+func (c *CloudClient) prepareUnpublishRequestData(link string) url.Values {
+	values := c.getDefaultFormDataFields(link)
+	delete(values, "conflict")
+	delete(values, "home")
+	values["weblink"] = link
+	return c.formDataToValues(values)
+}
+
+// formDataToValues конвертирует map в url.Values
+func (c *CloudClient) formDataToValues(values map[string]interface{}) url.Values {
+	formData := url.Values{}
+	for k, v := range values {
+		formData.Set(k, fmt.Sprintf("%v", v))
+	}
+	return formData
+}
+
+// executePublishUnpublishRequest выполняет запрос публикации/отмены публикации
+func (c *CloudClient) executePublishUnpublishRequest(operation string, formData url.Values, publish bool) (string, error) {
+	req, err := http.NewRequest("POST", BaseMailRuCloud+FileRequest+operation, strings.NewReader(formData.Encode()))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", UserAgent)
+
+	resp, err := c.Account.getHttpClient().Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusBadRequest {
+		errorCode := ErrorCodePathNotExists
+		if !publish {
+			errorCode = ErrorCodePublicLinkNotExists
+		}
+		return "", &CloudClientError{
+			Message:   fmt.Sprintf("Элемент по введенному %s не существует", map[bool]string{true: "пути", false: "публичной ссылке"}[publish]),
+			Source:    "link",
+			ErrorCode: errorCode,
+		}
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var result string
+	if err := deserializeJSON(body, &result); err != nil {
+		return "", err
+	}
+
+	return result, nil
+}
+
 // publishUnpublishInternal публикует или отменяет публикацию файла или папки
 func (c *CloudClient) publishUnpublishInternal(link string, publish bool) (*CloudStructureEntryBase, error) {
 	if link == "" {
@@ -743,28 +823,18 @@ func (c *CloudClient) publishUnpublishInternal(link string, publish bool) (*Clou
 	}
 
 	var item *CloudStructureEntryBase
+	var formData url.Values
+
 	if publish {
-		link = c.getPathStartEndSlash(link, true, false)
 		var err error
-		item, err = c.checkUnknownItemExisting(link)
+		link, item, err = c.preparePublishLink(link)
 		if err != nil {
 			return nil, err
 		}
+		formData = c.preparePublishRequestData(link)
 	} else {
-		link = strings.Replace(link, PublicLink, "", 1)
-	}
-
-	values := c.getDefaultFormDataFields(link)
-	delete(values, "conflict")
-
-	if !publish {
-		delete(values, "home")
-		values["weblink"] = link
-	}
-
-	formData := url.Values{}
-	for k, v := range values {
-		formData.Set(k, fmt.Sprintf("%v", v))
+		link = prepareUnpublishLink(link)
+		formData = c.prepareUnpublishRequestData(link)
 	}
 
 	operation := "unpublish"
@@ -772,38 +842,8 @@ func (c *CloudClient) publishUnpublishInternal(link string, publish bool) (*Clou
 		operation = "publish"
 	}
 
-	req, err := http.NewRequest("POST", BaseMailRuCloud+FileRequest+operation, strings.NewReader(formData.Encode()))
+	result, err := c.executePublishUnpublishRequest(operation, formData, publish)
 	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", UserAgent)
-
-	resp, err := c.Account.getHttpClient().Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusBadRequest {
-		errorCode := ErrorCodePathNotExists
-		if !publish {
-			errorCode = ErrorCodePublicLinkNotExists
-		}
-		return nil, &CloudClientError{
-			Message:   fmt.Sprintf("Элемент по введенному %s не существует", map[bool]string{true: "пути", false: "публичной ссылке"}[publish]),
-			Source:    "link",
-			ErrorCode: errorCode,
-		}
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var result string
-	if err := deserializeJSON(body, &result); err != nil {
 		return nil, err
 	}
 
@@ -849,22 +889,35 @@ func (c *CloudClient) UploadFile(destFileName, sourceFilePath, destFolderPath st
 	return c.UploadFileFromStream(destFileName, file, destFolderPath)
 }
 
-// UploadFileFromStream загружает файл в облако из потока
-func (c *CloudClient) UploadFileFromStream(destFileName string, content io.Reader, destFolderPath string) (*File, error) {
-	if err := c.checkAuthorization(); err != nil {
-		return nil, err
-	}
-
-	destFolderPath = c.getPathStartEndSlash(destFolderPath, true, true)
-
+// validateUploadParams проверяет параметры загрузки
+func (c *CloudClient) validateUploadParams(destFileName, destFolderPath string) error {
 	if destFileName == "" {
-		return nil, &CloudClientError{
+		return &CloudClientError{
 			Message:   "Имя файла не может быть пустым",
 			ErrorCode: ErrorCodePathNotExists,
 		}
 	}
 
-	// Чтение содержимого в память для определения размера
+	if destFolderPath == "" {
+		return &CloudClientError{
+			Message:   "Путь к папке назначения не может быть пустым",
+			ErrorCode: ErrorCodePathNotExists,
+		}
+	}
+
+	_, err := c.GetFolder(destFolderPath)
+	if err != nil {
+		return &CloudClientError{
+			Message:   "Путь не существует",
+			Source:    "destFolderPath",
+			ErrorCode: ErrorCodePathNotExists,
+		}
+	}
+	return nil
+}
+
+// readUploadContent читает содержимое для загрузки
+func readUploadContent(content io.Reader) ([]byte, error) {
 	contentBytes, err := io.ReadAll(content)
 	if err != nil {
 		return nil, err
@@ -876,101 +929,92 @@ func (c *CloudClient) UploadFileFromStream(destFileName string, content io.Reade
 			ErrorCode: ErrorCodePathNotExists,
 		}
 	}
+	return contentBytes, nil
+}
 
-	if destFolderPath == "" {
-		return nil, &CloudClientError{
-			Message:   "Путь к папке назначения не может быть пустым",
-			ErrorCode: ErrorCodePathNotExists,
-		}
-	}
-
-	_, err = c.GetFolder(destFolderPath)
-	if err != nil {
-		return nil, &CloudClientError{
-			Message:   "Путь не существует",
-			Source:    "destFolderPath",
-			ErrorCode: ErrorCodePathNotExists,
-		}
-	}
-
-	fileSize := int64(len(contentBytes))
+// validateUploadFileSize проверяет размер файла для загрузки
+func (c *CloudClient) validateUploadFileSize(fileSize int64) error {
 	sizeLimit := int64(2048 * 1024 * 1024) // 2GB
 	if !c.Account.Has2GBUploadSizeLimit() {
 		sizeLimit = int64(32768 * 1024 * 1024) // 32GB
 	}
 
 	if fileSize > sizeLimit {
-		return nil, &CloudClientError{
+		return &CloudClientError{
 			Message:   fmt.Sprintf("Максимальный лимит размера загрузки составляет %dGB", sizeLimit/(1024*1024*1024)),
 			Source:    "content",
 			ErrorCode: ErrorCodeUploadingSizeLimit,
 		}
 	}
+	return nil
+}
 
+// getUploadShardURL получает URL шарда для загрузки
+func (c *CloudClient) getUploadShardURL() (string, error) {
 	shards, err := c.getShardsInfo()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if len(shards.Upload) == 0 {
-		return nil, fmt.Errorf("шарды Upload не найдены")
+		return "", fmt.Errorf("шарды Upload не найдены")
 	}
 
 	shardURL := shards.Upload[0].URL
-	uploadURL := fmt.Sprintf(UploadFile, shardURL, c.Account.Email)
+	return fmt.Sprintf(UploadFile, shardURL, c.Account.Email), nil
+}
 
+// notifyUploadProgress уведомляет о прогрессе загрузки
+func (c *CloudClient) notifyUploadProgress(fileSize int64, percentage int) {
+	if c.ProgressChangedEvent == nil {
+		return
+	}
+
+	c.ProgressChangedEvent(c, &ProgressChangedEventArgs{
+		ProgressPercentage: percentage,
+		State: &ProgressChangeTaskState{
+			TotalBytes:      NewSize(fileSize),
+			BytesInProgress: NewSize(int64(percentage) * fileSize / 100),
+		},
+	})
+}
+
+// uploadToShard загружает файл на шард
+func (c *CloudClient) uploadToShard(uploadURL string, contentBytes []byte, fileSize int64) (string, error) {
 	req, err := http.NewRequestWithContext(c.cancelCtx, "PUT", uploadURL, bytes.NewReader(contentBytes))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	req.Header.Set("User-Agent", UserAgent)
 	req.ContentLength = fileSize
 
-	// Отслеживание прогресса загрузки
-	if c.ProgressChangedEvent != nil {
-		// Простая реализация прогресса - можно улучшить
-		go func() {
-			c.ProgressChangedEvent(c, &ProgressChangedEventArgs{
-				ProgressPercentage: 0,
-				State: &ProgressChangeTaskState{
-					TotalBytes:      NewSize(fileSize),
-					BytesInProgress: NewSize(0),
-				},
-			})
-		}()
-	}
+	c.notifyUploadProgress(fileSize, 0)
 
 	resp, err := c.Account.getHttpClient().Do(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	var hash string
 	if err := deserializeJSON(body, &hash); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	createdFile, err := c.createFileOrFolder(true, destFolderPath+destFileName, hash, fileSize, false)
-	if err != nil {
-		return nil, err
-	}
+	c.notifyUploadProgress(fileSize, 100)
+	return hash, nil
+}
 
-	if c.ProgressChangedEvent != nil {
-		c.ProgressChangedEvent(c, &ProgressChangedEventArgs{
-			ProgressPercentage: 100,
-			State: &ProgressChangeTaskState{
-				TotalBytes:      NewSize(fileSize),
-				BytesInProgress: NewSize(fileSize),
-			},
-		})
-	}
-
+// createUploadedFile создает объект File для загруженного файла
+func (c *CloudClient) createUploadedFile(createdFile *struct {
+	NewName string
+	NewPath string
+}, hash string, fileSize int64) *File {
 	return &File{
 		CloudStructureEntryBase: CloudStructureEntryBase{
 			FullPath: createdFile.NewPath,
@@ -981,7 +1025,47 @@ func (c *CloudClient) UploadFileFromStream(destFileName string, content io.Reade
 		},
 		Hash:                hash,
 		LastModifiedTimeUTC: time.Now().UTC(),
-	}, nil
+	}
+}
+
+// UploadFileFromStream загружает файл в облако из потока
+func (c *CloudClient) UploadFileFromStream(destFileName string, content io.Reader, destFolderPath string) (*File, error) {
+	if err := c.checkAuthorization(); err != nil {
+		return nil, err
+	}
+
+	destFolderPath = c.getPathStartEndSlash(destFolderPath, true, true)
+
+	if err := c.validateUploadParams(destFileName, destFolderPath); err != nil {
+		return nil, err
+	}
+
+	contentBytes, err := readUploadContent(content)
+	if err != nil {
+		return nil, err
+	}
+
+	fileSize := int64(len(contentBytes))
+	if err := c.validateUploadFileSize(fileSize); err != nil {
+		return nil, err
+	}
+
+	uploadURL, err := c.getUploadShardURL()
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := c.uploadToShard(uploadURL, contentBytes, fileSize)
+	if err != nil {
+		return nil, err
+	}
+
+	createdFile, err := c.createFileOrFolder(true, destFolderPath+destFileName, hash, fileSize, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.createUploadedFile(createdFile, hash, fileSize), nil
 }
 
 // DownloadFile скачивает файл из облака
@@ -1105,10 +1189,10 @@ func (c *CloudClient) DownloadItemsAsZIPArchiveToStream(filesAndFoldersPaths []s
 	return err
 }
 
-// GetDirectLinkZIPArchive предоставляет анонимную прямую ссылку для скачивания ZIP архива выбранных файлов и папок
-func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, destZipArchiveName string) (string, error) {
+// validateZipPaths проверяет валидность путей для ZIP архива
+func (c *CloudClient) validateZipPaths(filesAndFoldersPaths []string) error {
 	if filesAndFoldersPaths == nil || len(filesAndFoldersPaths) == 0 {
-		return "", &CloudClientError{
+		return &CloudClientError{
 			Message:   "Список путей не может быть пустым",
 			ErrorCode: ErrorCodePathNotExists,
 		}
@@ -1116,17 +1200,17 @@ func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, des
 
 	for _, path := range filesAndFoldersPaths {
 		if path == "" || path == "/" {
-			return "", &CloudClientError{
+			return &CloudClientError{
 				Message:   "Один из путей пуст или указывает на домашнюю директорию",
 				ErrorCode: ErrorCodePathNotExists,
 			}
 		}
 	}
+	return nil
+}
 
-	if err := c.checkAuthorization(); err != nil {
-		return "", err
-	}
-
+// prepareZipArchiveName подготавливает имя ZIP архива
+func prepareZipArchiveName(destZipArchiveName string) string {
 	if destZipArchiveName == "" {
 		destZipArchiveName = fmt.Sprintf("%d", time.Now().Unix())
 	}
@@ -1134,10 +1218,12 @@ func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, des
 	if !strings.HasSuffix(strings.ToLower(destZipArchiveName), ".zip") {
 		destZipArchiveName += ".zip"
 	}
+	return destZipArchiveName
+}
 
-	// Проверка общего пути
+// validateCommonPath проверяет, что все пути имеют общий родительский путь
+func (c *CloudClient) validateCommonPath(filesAndFoldersPaths []string) ([]string, error) {
 	var commonPath string
-	allHasCommonPath := true
 	processedPaths := make([]string, len(filesAndFoldersPaths))
 
 	for i, path := range filesAndFoldersPaths {
@@ -1145,18 +1231,21 @@ func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, des
 		if commonPath == "" {
 			commonPath = parentPath
 		}
-		allHasCommonPath = allHasCommonPath && (commonPath == parentPath)
+		if commonPath != parentPath {
+			return nil, &CloudClientError{
+				Message:   "Некоторые файлы или папки имеют разные общие пути. Все элементы должны иметь общую родительскую папку",
+				Source:    "filesAndFoldersPaths",
+				ErrorCode: ErrorCodeDifferentParentPaths,
+			}
+		}
 		processedPaths[i] = fmt.Sprintf(`"%s"`, c.getPathStartEndSlash(path, true, false))
 	}
 
-	if !allHasCommonPath {
-		return "", &CloudClientError{
-			Message:   "Некоторые файлы или папки имеют разные общие пути. Все элементы должны иметь общую родительскую папку",
-			Source:    "filesAndFoldersPaths",
-			ErrorCode: ErrorCodeDifferentParentPaths,
-		}
-	}
+	return processedPaths, nil
+}
 
+// createZipArchiveRequest создает запрос для создания ZIP архива
+func (c *CloudClient) createZipArchiveRequest(processedPaths []string, destZipArchiveName string) (*http.Request, error) {
 	pathsStr := fmt.Sprintf("[%s]", strings.Join(processedPaths, ","))
 	values := map[string]interface{}{
 		"home_list": pathsStr,
@@ -1173,11 +1262,15 @@ func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, des
 
 	req, err := http.NewRequest("POST", BaseMailRuCloud+CreateZipArchive, strings.NewReader(formData.Encode()))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", UserAgent)
+	return req, nil
+}
 
+// executeZipArchiveRequest выполняет запрос создания ZIP архива
+func (c *CloudClient) executeZipArchiveRequest(req *http.Request) (string, error) {
 	resp, err := c.Account.getHttpClient().Do(req)
 	if err != nil {
 		return "", err
@@ -1202,4 +1295,29 @@ func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, des
 	}
 
 	return directLink, nil
+}
+
+// GetDirectLinkZIPArchive предоставляет анонимную прямую ссылку для скачивания ZIP архива выбранных файлов и папок
+func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, destZipArchiveName string) (string, error) {
+	if err := c.validateZipPaths(filesAndFoldersPaths); err != nil {
+		return "", err
+	}
+
+	if err := c.checkAuthorization(); err != nil {
+		return "", err
+	}
+
+	destZipArchiveName = prepareZipArchiveName(destZipArchiveName)
+
+	processedPaths, err := c.validateCommonPath(filesAndFoldersPaths)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := c.createZipArchiveRequest(processedPaths, destZipArchiveName)
+	if err != nil {
+		return "", err
+	}
+
+	return c.executeZipArchiveRequest(req)
 }

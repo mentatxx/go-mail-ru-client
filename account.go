@@ -46,16 +46,10 @@ func (a *Account) Has2GBUploadSizeLimit() bool {
 	return true
 }
 
-// Login выполняет вход в облачный сервер
-func (a *Account) Login() error {
-	if err := a.checkAuthorization(true); err != nil {
-		return err
-	}
-
-	// Инициализация HTTP клиента для авторизации
+// performAuth выполняет авторизацию на сервере Mail.ru
+func (a *Account) performAuth() error {
 	a.initHttpClient(BaseMailRuAuth)
 
-	// Авторизация
 	authURL := BaseMailRuAuth + Auth
 	formData := url.Values{}
 	formData.Set("Login", a.Email)
@@ -78,16 +72,19 @@ func (a *Account) Login() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("авторизация не удалась: статус %d", resp.StatusCode)
 	}
+	return nil
+}
 
-	// Обеспечение SDC cookies
+// ensureSDCCookies обеспечивает получение SDC cookies
+func (a *Account) ensureSDCCookies() error {
 	sdcURL := BaseMailRuAuth + EnsureSdc
-	req, err = http.NewRequest("GET", sdcURL, nil)
+	req, err := http.NewRequest("GET", sdcURL, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("User-Agent", UserAgent)
 
-	resp, err = a.httpClient.Do(req)
+	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -96,19 +93,21 @@ func (a *Account) Login() error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("получение SDC cookies не удалось: статус %d", resp.StatusCode)
 	}
+	return nil
+}
 
-	// Инициализация HTTP клиента для облака
+// fetchAuthToken получает токен авторизации
+func (a *Account) fetchAuthToken() error {
 	a.initHttpClient(BaseMailRuCloud)
 
-	// Получение токена авторизации
 	tokenURL := BaseMailRuCloud + AuthTokenURL
-	req, err = http.NewRequest("GET", tokenURL, nil)
+	req, err := http.NewRequest("GET", tokenURL, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("User-Agent", UserAgent)
 
-	resp, err = a.httpClient.Do(req)
+	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -132,8 +131,11 @@ func (a *Account) Login() error {
 	if a.authToken == "" {
 		return fmt.Errorf("токен не найден в ответе")
 	}
+	return nil
+}
 
-	// Получение тарифов
+// loadActivatedRates загружает активированные тарифы
+func (a *Account) loadActivatedRates() error {
 	rates, err := a.getRates()
 	if err != nil {
 		return err
@@ -146,6 +148,30 @@ func (a *Account) Login() error {
 		}
 	}
 	a.ActivatedTariffs = activatedRates
+	return nil
+}
+
+// Login выполняет вход в облачный сервер
+func (a *Account) Login() error {
+	if err := a.checkAuthorization(true); err != nil {
+		return err
+	}
+
+	if err := a.performAuth(); err != nil {
+		return err
+	}
+
+	if err := a.ensureSDCCookies(); err != nil {
+		return err
+	}
+
+	if err := a.fetchAuthToken(); err != nil {
+		return err
+	}
+
+	if err := a.loadActivatedRates(); err != nil {
+		return err
+	}
 
 	return nil
 }

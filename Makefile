@@ -16,6 +16,18 @@ clean:
 lint:
 	golangci-lint run
 
+# Проверка цикломатической сложности
+cyclo:
+	@if command -v gocyclo >/dev/null 2>&1; then \
+		echo "Проверка цикломатической сложности (порог: 15):"; \
+		gocyclo -over 15 . || true; \
+		echo ""; \
+		echo "Полный отчет:"; \
+		gocyclo -avg .; \
+	else \
+		echo "gocyclo не установлен. Установите: go install github.com/fzipp/gocyclo/cmd/gocyclo@latest"; \
+	fi
+
 # Форматирование кода
 fmt:
 	go fmt ./...
@@ -41,5 +53,5 @@ install-hooks:
 	fi
 
 # Запуск всех проверок
-check: fmt vet test
+check: fmt vet cyclo test
 
