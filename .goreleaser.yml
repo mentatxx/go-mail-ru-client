@@ -1,0 +1,28 @@
+# .goreleaser.yml
+project_name: go-mail-ru-client
+
+builds:
+  - id: go-mail-ru-client
+    main: .
+    binary: go-mail-ru-client
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    builds:
+      - go-mail-ru-client
+    format_overrides:
+      - goos: windows
+        format: zip
+
+release:
+  github:
+    owner: mentatxx
+    name: go-mail-ru-client
+

@@ -1,4 +1,4 @@
-module github.com/cloudru/go-mail-ru-client
+module github.com/mentatxx/go-mail-ru-client
 
 go 1.21
 

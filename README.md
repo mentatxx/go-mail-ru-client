@@ -4,10 +4,13 @@
 
 Это порт библиотеки [MailRuCloudClientDotNETCore](https://github.com/erastmorgan/MailRuCloudClientDotNETCore) на язык Go.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/mentatxx/go-mail-ru-client.svg)](https://pkg.go.dev/github.com/mentatxx/go-mail-ru-client)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mentatxx/go-mail-ru-client)](https://goreportcard.com/report/github.com/mentatxx/go-mail-ru-client)
+
 ## Установка
 
 ```bash
-go get github.com/cloudru/go-mail-ru-client
+go get github.com/mentatxx/go-mail-ru-client
 ```
 
 ## Использование
@@ -66,7 +69,27 @@ if err != nil {
 defer stream.Close()
 ```
 
+## Разработка
+
+### Запуск тестов
+
+```bash
+# Установите переменные окружения для тестов
+export MAILRU_TEST_LOGIN="your_email@mail.ru"
+export MAILRU_TEST_PASSWORD="your_password"
+
+# Запустите тесты
+go test -v ./...
+```
+
+
 ## Лицензия
 
 MIT
+
+## Ссылки
+
+- [Исходная .NET библиотека](https://github.com/erastmorgan/MailRuCloudClientDotNETCore)
+- [Документация Go](https://pkg.go.dev/github.com/mentatxx/go-mail-ru-client)
+- [Репозиторий](https://github.com/mentatxx/go-mail-ru-client)
 
