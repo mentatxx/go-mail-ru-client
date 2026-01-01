@@ -77,8 +77,8 @@ func (f *File) Copy(destFolderPath string) (*File, error) {
 	}
 	return &File{
 		CloudStructureEntryBase: *result,
-		Hash:                     f.Hash,
-		LastModifiedTimeUTC:      f.LastModifiedTimeUTC,
+		Hash:                    f.Hash,
+		LastModifiedTimeUTC:     f.LastModifiedTimeUTC,
 	}, nil
 }
 
@@ -120,4 +120,3 @@ func (f *File) DownloadFileStream() (io.ReadCloser, int64, error) {
 func (f *File) AbortAllAsyncTasks() {
 	f.client.AbortAllAsyncTasks()
 }
-

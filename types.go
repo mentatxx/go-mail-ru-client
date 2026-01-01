@@ -149,12 +149,12 @@ type Rate struct {
 
 // CostItem элемент стоимости
 type CostItem struct {
-	Cost          float64  `json:"cost"`
-	SpecialCost   float64  `json:"special_cost"`
-	Currency      string   `json:"currency"`
-	Duration      *Duration `json:"duration"`
+	Cost            float64   `json:"cost"`
+	SpecialCost     float64   `json:"special_cost"`
+	Currency        string    `json:"currency"`
+	Duration        *Duration `json:"duration"`
 	SpecialDuration *Duration `json:"special_duration"`
-	ID            string   `json:"id"`
+	ID              string    `json:"id"`
 }
 
 // Duration длительность
@@ -188,19 +188,19 @@ type ShardInfo struct {
 
 // ShardsList список различных типов шардов
 type ShardsList struct {
-	Video           []*ShardInfo `json:"video"`
-	ViewDirect      []*ShardInfo `json:"view_direct"`
-	WeblinkView     []*ShardInfo `json:"weblink_view"`
-	WeblinkVideo    []*ShardInfo `json:"weblink_video"`
-	WeblinkGet      []*ShardInfo `json:"weblink_get"`
-	Stock           []*ShardInfo `json:"stock"`
+	Video             []*ShardInfo `json:"video"`
+	ViewDirect        []*ShardInfo `json:"view_direct"`
+	WeblinkView       []*ShardInfo `json:"weblink_view"`
+	WeblinkVideo      []*ShardInfo `json:"weblink_video"`
+	WeblinkGet        []*ShardInfo `json:"weblink_get"`
+	Stock             []*ShardInfo `json:"stock"`
 	WeblinkThumbnails []*ShardInfo `json:"weblink_thumbnails"`
-	Web             []*ShardInfo `json:"web"`
-	Auth            []*ShardInfo `json:"auth"`
-	View            []*ShardInfo `json:"view"`
-	Get             []*ShardInfo `json:"get"`
-	Upload          []*ShardInfo `json:"upload"`
-	Thumbnails      []*ShardInfo `json:"thumbnails"`
+	Web               []*ShardInfo `json:"web"`
+	Auth              []*ShardInfo `json:"auth"`
+	View              []*ShardInfo `json:"view"`
+	Get               []*ShardInfo `json:"get"`
+	Upload            []*ShardInfo `json:"upload"`
+	Thumbnails        []*ShardInfo `json:"thumbnails"`
 }
 
 // Count количество различных типов записей
@@ -217,21 +217,20 @@ type Sort struct {
 
 // CloudStructureEntry определяет DTO объект элемента для структуры облака
 type CloudStructureEntry struct {
-	Count         *Count                `json:"count"`
-	Tree          string                `json:"tree"`
-	Name          string                `json:"name"`
-	Grev          string                `json:"grev"`
-	Size          int64                `json:"size"`
-	Sort          *Sort                 `json:"sort"`
-	Kind          string                `json:"kind"`
-	Rev           int                   `json:"rev"`
-	Type          string                `json:"type"`
-	Home          string                `json:"home"`
-	Weblink       string                `json:"weblink"`
-	Mtime         int64                 `json:"mtime"`
-	Time          int64                 `json:"time"`
-	VirusScan     string                `json:"virus_scan"`
-	Hash          string                `json:"hash"`
-	List          []*CloudStructureEntry `json:"list"`
+	Count     *Count                 `json:"count"`
+	Tree      string                 `json:"tree"`
+	Name      string                 `json:"name"`
+	Grev      string                 `json:"grev"`
+	Size      int64                  `json:"size"`
+	Sort      *Sort                  `json:"sort"`
+	Kind      string                 `json:"kind"`
+	Rev       int                    `json:"rev"`
+	Type      string                 `json:"type"`
+	Home      string                 `json:"home"`
+	Weblink   string                 `json:"weblink"`
+	Mtime     int64                  `json:"mtime"`
+	Time      int64                  `json:"time"`
+	VirusScan string                 `json:"virus_scan"`
+	Hash      string                 `json:"hash"`
+	List      []*CloudStructureEntry `json:"list"`
 }
-

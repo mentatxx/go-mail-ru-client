@@ -71,6 +71,21 @@ defer stream.Close()
 
 ## Разработка
 
+### Установка Git Hooks
+
+Для автоматической проверки форматирования перед коммитом:
+
+```bash
+make install-hooks
+```
+
+Или вручную:
+
+```bash
+cp .githooks/* .git/hooks/
+chmod +x .git/hooks/*
+```
+
 ### Запуск тестов
 
 ```bash
@@ -80,6 +95,15 @@ export MAILRU_TEST_PASSWORD="your_password"
 
 # Запустите тесты
 go test -v ./...
+```
+
+### Форматирование кода
+
+```bash
+# Автоматическое форматирование
+go fmt ./...
+# или
+gofmt -w .
 ```
 
 

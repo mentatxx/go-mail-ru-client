@@ -1,4 +1,4 @@
-.PHONY: test build clean lint fmt vet
+.PHONY: test build clean lint fmt vet install-hooks
 
 # Запуск тестов
 test:
@@ -28,6 +28,17 @@ vet:
 deps:
 	go mod download
 	go mod tidy
+
+# Установка git hooks
+install-hooks:
+	@if [ -d .git ]; then \
+		cp .githooks/* .git/hooks/ 2>/dev/null || true; \
+		chmod +x .git/hooks/*; \
+		echo "Git hooks установлены"; \
+	else \
+		echo "Ошибка: это не git репозиторий"; \
+		exit 1; \
+	fi
 
 # Запуск всех проверок
 check: fmt vet test

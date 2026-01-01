@@ -46,7 +46,7 @@ func (f *Folder) GetFiles() []*File {
 					account:    f.account,
 					client:     f.client,
 				},
-				Hash:              item.Hash,
+				Hash:                item.Hash,
 				LastModifiedTimeUTC: time.Unix(item.Mtime, 0).UTC(),
 			})
 		}
@@ -262,4 +262,3 @@ func (f *Folder) updateFolderInfo(forceUpdate bool) {
 		f.prevDiskUsed = currentDiskSpace.Used.DefaultValue
 	}
 }
-

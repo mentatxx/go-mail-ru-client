@@ -24,8 +24,8 @@ const (
 
 // CloudClientError представляет ошибку клиента облака
 type CloudClientError struct {
-	Message  string
-	Source   string
+	Message   string
+	Source    string
 	ErrorCode ErrorCode
 }
 
@@ -48,4 +48,3 @@ func (e *NotAuthorizedError) Error() string {
 	}
 	return e.Message
 }
-

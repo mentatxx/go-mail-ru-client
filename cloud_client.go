@@ -36,7 +36,7 @@ func NewCloudClient(account *Account) (*CloudClient, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	client := &CloudClient{
-		Account: account,
+		Account:     account,
 		cancelToken: cancel,
 		cancelCtx:   ctx,
 	}
@@ -189,7 +189,7 @@ func (c *CloudClient) RestoreFileFromHistory(sourceFullPath string, historyRevis
 			Name:     created.NewName,
 			Size:     history.Size,
 		},
-		Hash:              history.Hash,
+		Hash:                history.Hash,
 		LastModifiedTimeUTC: history.LastModifiedTimeUTC,
 	}, nil
 }
@@ -979,7 +979,7 @@ func (c *CloudClient) UploadFileFromStream(destFileName string, content io.Reade
 			account:  c.Account,
 			client:   c,
 		},
-		Hash:              hash,
+		Hash:                hash,
 		LastModifiedTimeUTC: time.Now().UTC(),
 	}, nil
 }
@@ -1203,4 +1203,3 @@ func (c *CloudClient) GetDirectLinkZIPArchive(filesAndFoldersPaths []string, des
 
 	return directLink, nil
 }
-

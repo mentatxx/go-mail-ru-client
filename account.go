@@ -30,7 +30,7 @@ type Account struct {
 func NewAccount(email, password string) *Account {
 	jar, _ := cookiejar.New(nil)
 	return &Account{
-		Email:   email,
+		Email:    email,
 		Password: password,
 		cookies:  jar,
 	}
@@ -327,4 +327,3 @@ func deserializeJSON(data []byte, target interface{}) error {
 
 	return json.Unmarshal(resp.Body, target)
 }
-
