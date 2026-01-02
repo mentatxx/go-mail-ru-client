@@ -1,4 +1,6 @@
 # .goreleaser.yml
+version: 2
+
 project_name: go-mail-ru-client
 
 builds:
@@ -15,14 +17,15 @@ builds:
 
 archives:
   - id: default
-    builds:
-      - go-mail-ru-client
+    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - README.md
+      - LICENSE
 
 release:
   github:
     owner: mentatxx
     name: go-mail-ru-client
-
