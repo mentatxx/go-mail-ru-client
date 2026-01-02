@@ -2,6 +2,8 @@
 
 Неофициальная библиотека-клиент для работы с облаком Mail.ru на языке Go.
 
+(!) Не работает. Используйте WebDAV https://help.mail.ru/cloud_web/app/webdav/
+
 Это порт библиотеки [MailRuCloudClientDotNETCore](https://github.com/erastmorgan/MailRuCloudClientDotNETCore) на язык Go.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/mentatxx/go-mail-ru-client.svg)](https://pkg.go.dev/github.com/mentatxx/go-mail-ru-client)

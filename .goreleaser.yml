@@ -5,7 +5,7 @@ project_name: go-mail-ru-client
 
 builds:
   - id: go-mail-ru-client
-    main: .
+    main: ./cmd/go-mail-ru-client
     binary: go-mail-ru-client
     goos:
       - linux
